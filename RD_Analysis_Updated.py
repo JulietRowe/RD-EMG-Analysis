@@ -8,6 +8,8 @@ from IPython import get_ipython
 import numpy as np 
 import pandas as pd
 import matplotlib.pyplot as plt
+from scipy import signal
+from scipy.signal import find_peaks
 
 get_ipython().magic('reset -f')
 get_ipython().magic('clear')
@@ -18,14 +20,27 @@ movement = input("Please type squat to analyze squat-to-stand OR sit to analyze 
 #Import Data
 if movement == 'squat':
     File = 'C:/Users/julie/Year 5 Kin/RD-EMG-Analysis/RD_Squat_Stand.csv'
+    File2 = 'C:/Users/julie/Year 5 Kin/RD-EMG-Analysis/LASI_Squat data.csv'
+    LASI = pd.read_csv(File2, header = 0)
 
 elif movement == 'sit':
     File = 'C:/Users/julie/Year 5 Kin/RD-EMG-Analysis/RD_Sit_Stand_EMG.csv'
+    File2 = 'C:/Users/julie/Year 5 Kin/RD-EMG-Analysis/LASI_Sit data.csv'
+    LASI = pd.read_csv(File2, header = 0)
     
 elif movement == 'gait':
     File = 'C:/Users/julie/Year 5 Kin/RD-EMG-Analysis/RD_Walk_EMG.csv'
 
 emg = pd.read_csv(File, header = 0)
+
+#Resampling LASI from 100Hz to 2000Hz
+if movement == 'sit' or movement == 'squat':
+    x = LASI['Y3']
+    x_resampled = signal.resample(x, 48620)
+
+    plt.figure()
+    fig, ax = plt.subplots(1, figsize = (15,10))
+    ax.plot(x_resampled)
 
 #Sampling frequency
 sfreq = 2000
@@ -110,54 +125,43 @@ custom_plot('Envelope EMG', EMG_envelope.index, EMG_envelope[GM], EMG_envelope[S
 EMG_envelope['sample'] = (np.linspace(1, len(EMG_envelope), num = len(EMG_envelope))).astype(int)
 EMG_envelope = EMG_envelope.set_index('sample')
 
-from scipy.signal import find_peaks
-
 #Finding the peaks of the rest sections
 if movement == 'squat':
-    if val == 'right':
-        peaks = find_peaks(EMG_envelope[BF], height = 0.000018, distance = 5000)
-        height = peaks[1]['peak_heights'] #list containing the height of the peaks
-        peak_pos = EMG_envelope.index[peaks[0]] #list of the peaks positions
+    x_resampled = pd.DataFrame(x_resampled)
+    x_resampled = x_resampled.rename(columns = {0: 'Y3'})
+    x_resampled['Y3'] = x_resampled['Y3'] * -1
+    x_resampled['Y3'] = x_resampled.loc[5000:, 'Y3'].replace(np.nan)
+    plt.figure()
+    plt.plot(x_resampled)
     
-        fig = plt.figure()
-        ax = fig.subplots()
-        ax.plot(EMG_envelope[BF])
-        ax.scatter(peak_pos, height, color = 'r', s = 15, marker = 'D')
-        plt.show()
+    peaks = find_peaks(x_resampled['Y3'], height = -550, distance = 6500)
+    height = peaks[1]['peak_heights'] #list containing the height of the peaks
+    peak_pos = x_resampled.index[peaks[0]] #list of the peaks positions
     
-    elif val == 'left':
-        peaks = find_peaks(EMG_envelope[ST], height = 0.00004, distance = 5000)
-        height = peaks[1]['peak_heights'] #list containing the height of the peaks
-        peak_pos = EMG_envelope.index[peaks[0]] #list of the peaks positions
-    
-        fig = plt.figure()
-        ax = fig.subplots()
-        ax.plot(EMG_envelope[ST])
-        ax.scatter(peak_pos, height, color = 'r', s = 15, marker = 'D')
-        plt.show()
+    fig = plt.figure()
+    ax = fig.subplots()
+    ax.plot(x_resampled['Y3'])
+    ax.scatter(peak_pos, height, color = 'r', s = 15, marker = 'D')
+    plt.show()
         
 elif movement == 'sit':
-    if val == 'right':
-        peaks = find_peaks(EMG_envelope[BF], height = 0.000016, distance = 8000)
-        height = peaks[1]['peak_heights'] #list containing the height of the peaks
-        peak_pos = EMG_envelope.index[peaks[0]] #list of the peaks positions
+    x_resampled = pd.DataFrame(x_resampled)
+    x_resampled = x_resampled.rename(columns = {0: 'Y3'})
+    x_resampled['Y3'] = x_resampled['Y3'] * -1
+    x_resampled['Y3'] = x_resampled.loc[200:, 'Y3'].replace(np.nan)
+    plt.figure()
+    plt.plot(x_resampled)
+
+    peaks = find_peaks(x_resampled['Y3'], height = -700, distance = 6500)
+    height = peaks[1]['peak_heights'] #list containing the height of the peaks
+    peak_pos = x_resampled.index[peaks[0]] #list of the peaks positions
     
-        fig = plt.figure()
-        ax = fig.subplots()
-        ax.plot(EMG_envelope[BF])
-        ax.scatter(peak_pos, height, color = 'r', s = 15, marker = 'D')
-        plt.show()
-    
-    elif val == 'left':
-        peaks = find_peaks(EMG_envelope[ST], height = 0.000016, distance = 8000)
-        height = peaks[1]['peak_heights'] #list containing the height of the peaks
-        peak_pos = EMG_envelope.index[peaks[0]] #list of the peaks positions
-    
-        fig = plt.figure()
-        ax = fig.subplots()
-        ax.plot(EMG_envelope[ST])
-        ax.scatter(peak_pos, height, color = 'r', s = 15, marker = 'D')
-        plt.show()
+    fig = plt.figure()
+    ax = fig.subplots()
+    ax.plot(x_resampled['Y3'])
+    ax.scatter(peak_pos, height, color = 'r', s = 15, marker = 'D')
+    plt.show()
+
         
 elif movement == 'gait':
     peaks = find_peaks(EMG_envelope['R_ST'], height = 0.00002, distance = 1000)
@@ -173,38 +177,11 @@ subarray_ST = []
 subarray_GM = []
 subarray_BF = []
 
-if movement == 'squat':
-    if val == 'right':
-        for i in range(1, len(peak_pos)):
-            subarray_ST.append(array_ST[peak_pos[i]-4000:peak_pos[i]+3000])
-            subarray_GM.append(array_GM[peak_pos[i]-4000:peak_pos[i]+3000])
-            subarray_BF.append(array_BF[peak_pos[i]-4000:peak_pos[i]+3000])
-
-    elif val == 'left':
-        for i in range(1, len(peak_pos)):
-            subarray_ST.append(array_ST[peak_pos[i]-5000:peak_pos[i]+2000])
-            subarray_GM.append(array_GM[peak_pos[i]-5000:peak_pos[i]+2000])
-            subarray_BF.append(array_BF[peak_pos[i]-5000:peak_pos[i]+2000])
+for i in range(1, len(peak_pos)):
+    subarray_ST.append(array_ST[peak_pos[i - 1]:peak_pos[i]])
+    subarray_GM.append(array_GM[peak_pos[i - 1]:peak_pos[i]])
+    subarray_BF.append(array_BF[peak_pos[i - 1]:peak_pos[i]])
             
-elif movement == 'sit':
-    if val == 'right':
-        for i in range(1, len(peak_pos)):
-            subarray_ST.append(array_ST[peak_pos[i]-1000:peak_pos[i]+7000])
-            subarray_GM.append(array_GM[peak_pos[i]-1000:peak_pos[i]+7000])
-            subarray_BF.append(array_BF[peak_pos[i]-1000:peak_pos[i]+7000])
-
-    elif val == 'left':
-        for i in range(1, len(peak_pos)):
-            subarray_ST.append(array_ST[peak_pos[i]-6000:peak_pos[i]+4000])
-            subarray_GM.append(array_GM[peak_pos[i]-6000:peak_pos[i]+4000])
-            subarray_BF.append(array_BF[peak_pos[i]-6000:peak_pos[i]+4000])
-            
-elif movement == 'gait': 
-    for i in range(1, len(peak_pos)-1):
-        subarray_ST.append(array_ST[peak_pos[i - 1]:peak_pos[i+1]])
-        subarray_GM.append(array_GM[peak_pos[i - 1]:peak_pos[i+1]])
-        subarray_BF.append(array_BF[peak_pos[i - 1]:peak_pos[i+1]])
-
 #Setting time column
 EMG_envelope['delta_t'] = 1/sfreq
 EMG_envelope['real_time'] = np.cumsum(EMG_envelope['delta_t'])
@@ -223,10 +200,27 @@ plt.figure()
 fig, (ax1, ax2, ax3) = plt.subplots(3, figsize = (15,10))
 fig.suptitle(suptitle)
 
+#Converting time to %age of time
 for i in range(len(subarray_ST)):
-    ax1.plot(subarray_GM[i])
-    ax2.plot(subarray_ST[i])
-    ax3.plot(subarray_BF[i])
+    k = list(range(0, len(subarray_GM[i])))
+    GM_X = []
+    for number in k:
+        GM_X.append(number/len(subarray_GM[i]))
+        
+    l = list(range(0, len(subarray_ST[i])))
+    ST_X = []
+    for number in l:
+        ST_X.append(number/len(subarray_ST[i]))
+        
+    m = list(range(0, len(subarray_BF[i])))
+    BF_X = []
+    for number in m:
+        BF_X.append(number/len(subarray_BF[i]))
+    
+    ax1.plot(GM_X, subarray_GM[i])
+    ax2.plot(ST_X, subarray_ST[i])
+    ax3.plot(BF_X, subarray_BF[i])
+    
 
 def simpleaxis(ax, title, lim = 0.00008, xlabel = None):
     ax.spines['top'].set_visible(False)
@@ -236,8 +230,7 @@ def simpleaxis(ax, title, lim = 0.00008, xlabel = None):
     ax.set_xlabel(xlabel, fontsize = 12)
     ax.set_ylabel('EMG (uV)', fontsize = 12)
     ax.set_ylim(0, lim)
-    ax.set_xticklabels([0, 0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5])
-
+    
 if val == 'right':
     GM_title = 'R Gluteus maximus'
     ST_title = 'R Semitendinosus'
@@ -251,9 +244,16 @@ elif val == 'left':
 #Change lim number to alter the y axes for the final graph
 #For gait lim = 0.0005
 #For squat and sit lim = 0.00008
-simpleaxis(ax1, GM_title, lim = 0.0005)
-simpleaxis(ax2, ST_title, lim = 0.0005)
-simpleaxis(ax3, BF_title, lim = 0.0005, xlabel = 'Time (s)')
-    
-plt.show()
+if movement == 'gait':
+    simpleaxis(ax1, GM_title, lim = 0.0005)
+    simpleaxis(ax2, ST_title, lim = 0.0005)
+    simpleaxis(ax3, BF_title, lim = 0.0005, xlabel = '%age of Time')
+    plt.show()
+
+elif movement == 'sit' or movement == 'squat':
+    simpleaxis(ax1, GM_title, lim = 0.00008)
+    simpleaxis(ax2, ST_title, lim = 0.00008)
+    simpleaxis(ax3, BF_title, lim = 0.00008, xlabel = '%age of Time')
+    plt.show()
+
 
