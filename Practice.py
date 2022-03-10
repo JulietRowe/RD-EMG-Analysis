@@ -15,15 +15,15 @@ get_ipython().magic('reset -f')
 get_ipython().magic('clear')
 
 #Importing data
-File = 'C:/Users/julie/Year 5 Kin/RD-EMG-Analysis/LASI_Squat data.csv'
-LASI = pd.read_csv(File, header = 0)
+File = 'C:/Users/julie/Year 5 Kin/RD-EMG-Analysis/Gait Motion Capture.csv'
+MC_data = pd.read_csv(File, header = 0)
 
-File_emg = 'C:/Users/julie/Year 5 Kin/RD-EMG-Analysis/RD_Squat_Stand.csv'
+File_emg = 'C:/Users/julie/Year 5 Kin/RD-EMG-Analysis/RD_Walk_EMG.csv'
 emg = pd.read_csv(File_emg, header = 0)
 
 #Resampling LASI from 100Hz to 2000Hz
-x = LASI['Y3']
-x_resampled = signal.resample(x, 42120)
+x = MC_data['LLAN Y']
+x_resampled = signal.resample(x, 102840)
 
 plt.figure()
 fig, ax = plt.subplots(1, figsize = (15,10))
@@ -33,9 +33,11 @@ ax.plot(x_resampled)
 sfreq = 2000
 
 #Setting time column
+
 emg['delta_t'] = 1/sfreq
 emg['real_time'] = np.cumsum(emg['delta_t'])
 emg = emg.set_index('real_time')
+emg = emg.iloc[25010:98423]
 
 #Determining side to analyze 
 val = input("Please type right to analyze the right side OR left to analyze the left side: ")
@@ -112,19 +114,20 @@ EMG_envelope = EMG_envelope.set_index('sample')
 #Peak detection for sit to stand
 from scipy.signal import find_peaks
 x_resampled = pd.DataFrame(x_resampled)
-x_resampled = x_resampled.rename(columns = {0: 'Y3'})
-x_resampled['Y3'] = x_resampled['Y3'] * -1
-x_resampled['Y3'] = x_resampled.loc[5000:, 'Y3'].replace(np.nan)
+x_resampled = x_resampled.rename(columns = {0: 'LLAN Y'})
+x_resampled['LLAN Y'] = x_resampled['LLAN Y']*-1
+x_resampled['LLAN Y'] = x_resampled.loc[27000:, 'LLAN Y'].replace(np.nan)
+x_resampled['LLAN Y'] = x_resampled['LLAN Y'][:-4000].replace(np.nan)
 plt.figure()
 plt.plot(x_resampled)
 
-peaks = find_peaks(x_resampled['Y3'], height = -550, distance = 6500)
+peaks = find_peaks(x_resampled['LLAN Y'], height = -130, distance = 1500)
 height = peaks[1]['peak_heights'] #list containing the height of the peaks
 peak_pos = x_resampled.index[peaks[0]] #list of the peaks positions
     
 fig = plt.figure()
 ax = fig.subplots()
-ax.plot(x_resampled['Y3'])
+ax.plot(x_resampled['LLAN Y'])
 ax.scatter(peak_pos, height, color = 'r', s = 15, marker = 'D')
 plt.show()
 
