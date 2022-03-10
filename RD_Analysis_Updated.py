@@ -21,23 +21,48 @@ movement = input("Please type squat to analyze squat-to-stand OR sit to analyze 
 if movement == 'squat':
     File = 'C:/Users/julie/Year 5 Kin/RD-EMG-Analysis/RD_Squat_Stand.csv'
     File2 = 'C:/Users/julie/Year 5 Kin/RD-EMG-Analysis/LASI_Squat data.csv'
-    LASI = pd.read_csv(File2, header = 0)
 
 elif movement == 'sit':
     File = 'C:/Users/julie/Year 5 Kin/RD-EMG-Analysis/RD_Sit_Stand_EMG.csv'
     File2 = 'C:/Users/julie/Year 5 Kin/RD-EMG-Analysis/LASI_Sit data.csv'
-    LASI = pd.read_csv(File2, header = 0)
     
 elif movement == 'gait':
     File = 'C:/Users/julie/Year 5 Kin/RD-EMG-Analysis/RD_Walk_EMG.csv'
+    File2 = 'C:/Users/julie/Year 5 Kin/RD-EMG-Analysis/Gait Motion Capture.csv'
 
 emg = pd.read_csv(File, header = 0)
+MC_data = pd.read_csv(File2, header = 0)
 
-#Resampling LASI from 100Hz to 2000Hz
+#Determining side to analyze 
+val = input("Please type right to analyze the right side OR left to analyze the left side: ")
+   
+if val == 'right':
+    GM = 'R_GM'
+    ST = 'R_ST'
+    BF = 'R_BF'
+elif val == 'left':
+    GM = 'L_GM'
+    ST = 'L_ST'
+    BF = 'L_BF'
+
+#Resampling motion capture from 100Hz to 2000Hz
 if movement == 'sit' or movement == 'squat':
-    x = LASI['Y3']
+    x = MC_data['Y3']
     x_resampled = signal.resample(x, 48620)
 
+    plt.figure()
+    fig, ax = plt.subplots(1, figsize = (15,10))
+    ax.plot(x_resampled)
+     
+if movement == 'gait':
+    if val == 'right': 
+        x = MC_data['RLAN Y']
+
+    if val == 'left': 
+        x = MC_data['LLAN Y']
+
+    x_resampled = signal.resample(x, 102840)
+        
     plt.figure()
     fig, ax = plt.subplots(1, figsize = (15,10))
     ax.plot(x_resampled)
@@ -52,18 +77,6 @@ emg['real_time'] = np.cumsum(emg['delta_t'])
 emg = emg.set_index('real_time')
 if movement == 'gait':
     emg = emg.iloc[25010:98423]
-
-#Determining side to analyze 
-val = input("Please type right to analyze the right side OR left to analyze the left side: ")
-   
-if val == 'right':
-    GM = 'R_GM'
-    ST = 'R_ST'
-    BF = 'R_BF'
-elif val == 'left':
-    GM = 'L_GM'
-    ST = 'L_ST'
-    BF = 'L_BF'
 
 #Visualizing data
 def custom_plot(suptitle, x,
@@ -91,8 +104,7 @@ def custom_plot(suptitle, x,
 #Visualizing data
 custom_plot('Raw EMG', emg.index, emg[GM], emg[ST], emg[BF])
 
-#Filtering data
-from scipy import signal 
+#Filtering data 
 
 #Band Pass Filtering
 def Band_Pass(Muscle):
@@ -131,9 +143,7 @@ if movement == 'squat':
     x_resampled = x_resampled.rename(columns = {0: 'Y3'})
     x_resampled['Y3'] = x_resampled['Y3'] * -1
     x_resampled['Y3'] = x_resampled.loc[5000:, 'Y3'].replace(np.nan)
-    plt.figure()
-    plt.plot(x_resampled)
-    
+
     peaks = find_peaks(x_resampled['Y3'], height = -550, distance = 6500)
     height = peaks[1]['peak_heights'] #list containing the height of the peaks
     peak_pos = x_resampled.index[peaks[0]] #list of the peaks positions
@@ -149,8 +159,6 @@ elif movement == 'sit':
     x_resampled = x_resampled.rename(columns = {0: 'Y3'})
     x_resampled['Y3'] = x_resampled['Y3'] * -1
     x_resampled['Y3'] = x_resampled.loc[200:, 'Y3'].replace(np.nan)
-    plt.figure()
-    plt.plot(x_resampled)
 
     peaks = find_peaks(x_resampled['Y3'], height = -700, distance = 6500)
     height = peaks[1]['peak_heights'] #list containing the height of the peaks
@@ -164,10 +172,39 @@ elif movement == 'sit':
 
         
 elif movement == 'gait':
-    peaks = find_peaks(EMG_envelope['R_ST'], height = 0.00002, distance = 1000)
-    height = peaks[1]['peak_heights'] #list containing the height of the peaks
-    peak_pos = EMG_envelope.index[peaks[0]] #list of the peaks positions
+    if val == 'right':
+        x_resampled = pd.DataFrame(x_resampled)
+        x_resampled = x_resampled.rename(columns = {0: 'RLAN Y'})
+        x_resampled['RLAN Y'] = x_resampled['RLAN Y']*-1
+        x_resampled['RLAN Y'] = x_resampled.loc[26000:, 'RLAN Y'].replace(np.nan)
+        x_resampled['RLAN Y'] = x_resampled['RLAN Y'][:-4000].replace(np.nan)
+        
+        peaks = find_peaks(x_resampled['RLAN Y'], height = -130, distance = 1500)
+        height = peaks[1]['peak_heights'] #list containing the height of the peaks
+        peak_pos = x_resampled.index[peaks[0]] #list of the peaks positions
+    
+        fig = plt.figure()
+        ax = fig.subplots()
+        ax.plot(x_resampled['RLAN Y'])
+        ax.scatter(peak_pos, height, color = 'r', s = 15, marker = 'D')
+        plt.show()
+    
+    if val == 'left':
+        x_resampled = pd.DataFrame(x_resampled)
+        x_resampled = x_resampled.rename(columns = {0: 'LLAN Y'})
+        x_resampled['LLAN Y'] = x_resampled['LLAN Y']*-1
+        x_resampled['LLAN Y'] = x_resampled.loc[27000:, 'LLAN Y'].replace(np.nan)
+        x_resampled['LLAN Y'] = x_resampled['LLAN Y'][:-4000].replace(np.nan)
 
+        peaks = find_peaks(x_resampled['LLAN Y'], height = -130, distance = 1500)
+        height = peaks[1]['peak_heights'] #list containing the height of the peaks
+        peak_pos = x_resampled.index[peaks[0]] #list of the peaks positions
+            
+        fig = plt.figure()
+        ax = fig.subplots()
+        ax.plot(x_resampled['LLAN Y'])
+        ax.scatter(peak_pos, height, color = 'r', s = 15, marker = 'D')
+        plt.show()
 
 #Phase averaging the gait cycle based on ST activation
 array_ST = EMG_envelope[ST].to_numpy()
@@ -245,9 +282,9 @@ elif val == 'left':
 #For gait lim = 0.0005
 #For squat and sit lim = 0.00008
 if movement == 'gait':
-    simpleaxis(ax1, GM_title, lim = 0.0005)
-    simpleaxis(ax2, ST_title, lim = 0.0005)
-    simpleaxis(ax3, BF_title, lim = 0.0005, xlabel = '%age of Time')
+    simpleaxis(ax1, GM_title, lim = 0.000015)
+    simpleaxis(ax2, ST_title, lim = 0.00004)
+    simpleaxis(ax3, BF_title, lim = 0.00012, xlabel = '%age of Time')
     plt.show()
 
 elif movement == 'sit' or movement == 'squat':
